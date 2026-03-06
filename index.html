@@ -68,6 +68,9 @@
       const [editingId, setEditingId] = useState(null);
       const [editForm, setEditForm] = useState({ nama: '', kelas: '' });
 
+      // State untuk PWA Install Prompt
+      const [deferredPrompt, setDeferredPrompt] = useState(null);
+
       const showAlert = (title, message) => setAlertDialog({ isOpen: true, title, message });
 
       // Fungsi untuk mengambil data dari Google Sheets
@@ -115,6 +118,53 @@
         const interval = setInterval(loadData, 15000);
         return () => clearInterval(interval);
       }, []);
+
+      // Setup PWA Manifest & Deteksi Install Prompt
+      useEffect(() => {
+        // 1. Injeksi Manifest PWA secara otomatis (Kode ini menyamarkan file manifest.json)
+        const manifest = {
+          name: "Sistem Pengecekan Berkas",
+          short_name: "CekBerkas",
+          start_url: window.location.href,
+          display: "standalone",
+          background_color: "#f8fafc",
+          theme_color: "#2563eb",
+          icons: [
+            { src: "https://cdn-icons-png.flaticon.com/512/2904/2904838.png", sizes: "192x192", type: "image/png" },
+            { src: "https://cdn-icons-png.flaticon.com/512/2904/2904838.png", sizes: "512x512", type: "image/png" }
+          ]
+        };
+        const manifestUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
+        let link = document.querySelector('link[rel="manifest"]');
+        if (!link) {
+          link = document.createElement('link');
+          link.rel = 'manifest';
+          document.head.appendChild(link);
+        }
+        link.href = manifestUrl;
+
+        // 2. Tangkap event prompt install dari browser
+        const handleBeforeInstallPrompt = (e) => {
+          e.preventDefault();
+          setDeferredPrompt(e); // Simpan event ini untuk dimunculkan saat tombol diklik
+        };
+        window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+        return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      }, []);
+
+      // Fungsi untuk memicu jendela instalasi
+      const handleInstallApp = () => {
+        if (deferredPrompt) {
+          deferredPrompt.prompt();
+          deferredPrompt.userChoice.then((choiceResult) => {
+            if (choiceResult.outcome === 'accepted') {
+              console.log('User menerima instalasi PWA');
+            }
+            setDeferredPrompt(null);
+          });
+        }
+      };
 
       const sendToGoogleSheets = async (data) => {
         try {
@@ -407,6 +457,16 @@
                   <p className="text-2xl font-bold text-green-700 print:text-slate-900">{totalSelesai}</p>
                 </div>
                 
+                {/* Tombol Install PWA */}
+                {deferredPrompt && (
+                  <div className="print:hidden border-l border-slate-200 pl-4 ml-2 flex items-center">
+                    <button onClick={handleInstallApp} className="flex flex-col items-center justify-center gap-1 text-blue-600 hover:text-blue-700 transition-colors">
+                      <i className="fas fa-download text-xl"></i>
+                      <span className="text-xs font-semibold">Install App</span>
+                    </button>
+                  </div>
+                )}
+
                 <div className="print:hidden border-l border-slate-200 pl-4 ml-2 flex items-center">
                   {isAdmin ? (
                     <button onClick={requestLogout} className="flex flex-col items-center justify-center gap-1 text-rose-600 hover:text-rose-700 transition-colors">
