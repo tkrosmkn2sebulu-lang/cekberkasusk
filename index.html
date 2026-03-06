@@ -638,7 +638,7 @@
                     <button onClick={() => setShowLogin(false)} className="text-slate-400"><i className="fas fa-times text-lg"></i></button>
                   </div>
                   <form onSubmit={handlePinSubmit}>
-                    <input type="password" value={pin} onChange={(e) => { setPin(e.target.value); setPinError(''); }} className="w-full p-2.5 border rounded-lg outline-none mb-2" placeholder="PIN: 1234" autoFocus />
+                    <input type="password" value={pin} onChange={(e) => { setPin(e.target.value); setPinError(''); }} className="w-full p-2.5 border rounded-lg outline-none mb-2" placeholder="PIN: manatauja" autoFocus />
                     {pinError && <p className="text-rose-500 text-sm mb-2">{pinError}</p>}
                     <button type="submit" className="w-full py-2.5 bg-blue-600 text-white rounded-lg mt-2">Masuk</button>
                   </form>
