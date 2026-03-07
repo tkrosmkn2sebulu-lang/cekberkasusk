@@ -123,15 +123,15 @@
       useEffect(() => {
         // 1. Injeksi Manifest PWA secara otomatis (Kode ini menyamarkan file manifest.json)
         const manifest = {
-          name: "Sistem Pengecekan Berkas",
+          name: "Sistem Pengecekan Berkas USK",
           short_name: "CekBerkas",
           start_url: window.location.href,
           display: "standalone",
           background_color: "#f8fafc",
           theme_color: "#2563eb",
           icons: [
-            { src: "https://cdn-icons-png.flaticon.com/512/2904/2904838.png", sizes: "192x192", type: "image/png" },
-            { src: "https://cdn-icons-png.flaticon.com/512/2904/2904838.png", sizes: "512x512", type: "image/png" }
+            { src: "https://cdn-icons-png.flaticon.com/512/11546/11546470.png", sizes: "192x192", type: "image/png" },
+            { src: "https://cdn-icons-png.flaticon.com/512/11546/11546470.png", sizes: "512x512", type: "image/png" }
           ]
         };
         const manifestUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
