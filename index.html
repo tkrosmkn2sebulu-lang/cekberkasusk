@@ -3,35 +3,52 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sistem Pengecekan Berkas</title>
+  <title>Sistem Pengecekan Berkas Lengkap</title>
   
-  <!-- Memuat Tailwind CSS untuk Desain -->
   <script src="https://cdn.tailwindcss.com"></script>
-  
-  <!-- Memuat Font Awesome untuk Ikon (Pengganti Lucide React) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
-  <!-- Memuat React & ReactDOM -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  
-  <!-- Memuat Babel (Agar browser bisa membaca kode React JSX langsung) -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body class="bg-slate-50 text-slate-800">
-  
-  <!-- Tempat Aplikasi React akan dirender -->
   <div id="root"></div>
 
-  <!-- Kode Aplikasi React -->
   <script type="text/babel">
     const { useState, useEffect } = React;
 
-    // URL DARI GOOGLE APPS SCRIPT ANDA
+    // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
     const GOOGLE_SHEET_URL = 'https://script.google.com/macros/s/AKfycbyUDx6AP2hRCxL7ENXg1JrozljSa1UOmfjBhIxWBc0tpkB3hk-S46dMngd7puogSWJq3g/exec';
 
-    // Komponen Textarea Khusus untuk menghindari cursor jump saat real-time sync
-    const KeteranganInput = ({ value, id, onSave, disabled }) => {
+    // Daftar Dokumen untuk Tab Berkas
+    const DAFTAR_DOKUMEN = [
+      { id: 'ktp', label: 'KTP', icon: 'fa-id-card' },
+      { id: 'foto', label: 'Foto', icon: 'fa-image' },
+      { id: 'rapot', label: 'Rapot', icon: 'fa-book' },
+      { id: 'sertifikat', label: 'Sertifikat', icon: 'fa-certificate' },
+      { id: 'suratKeterangan', label: 'Surat Ket', icon: 'fa-envelope-open-text' },
+      { id: 'ijazah', label: 'Ijazah', icon: 'fa-graduation-cap', color: 'bg-blue-50 text-blue-700' },
+      { id: 'kk', label: 'Kartu K.', icon: 'fa-users', color: 'bg-blue-50 text-blue-700' },
+      { id: 'akta', label: 'Akta', icon: 'fa-child', color: 'bg-blue-50 text-blue-700' },
+      { id: 'keterangan', label: 'Keterangan', icon: 'fa-sticky-note', isText: true }
+    ];
+
+    // Daftar Modul untuk Tab Pendaftaran
+    const DAFTAR_PENDAFTARAN = [
+      { id: 'data1', label: 'Data 1', icon: 'fa-keyboard', isText: true, color: 'bg-indigo-50 text-indigo-700' },
+      { id: 'data2', label: 'Data 2', icon: 'fa-keyboard', isText: true, color: 'bg-indigo-50 text-indigo-700' },
+      { id: 'daftar', label: 'Daftar', icon: 'fa-sign-in-alt' },
+      { id: 'updateProfil', label: 'Update Profil', icon: 'fa-user-edit' },
+      { id: 'pilihSkema', label: 'Pilih Skema', icon: 'fa-list-check' },
+      { id: 'uploadBerkas', label: 'Upload Berkas', icon: 'fa-file-upload' },
+      { id: 'apl', label: 'APL 01/02', icon: 'fa-file-signature' },
+      { id: 'jadwalUjian', label: 'Jadwal Ujian', icon: 'fa-calendar-alt' },
+      { id: 'finish', label: 'Finish', icon: 'fa-flag-checkered', color: 'bg-emerald-50 text-emerald-700' }
+    ];
+
+    // Komponen Input Teks Dinamis (Untuk Data 1, Data 2, dan Keterangan)
+    const TextInput = ({ value, id, field, onSave, disabled, placeholder }) => {
       const [text, setText] = useState(value || '');
       useEffect(() => { setText(value || '') }, [value]);
       
@@ -39,13 +56,11 @@
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onBlur={() => onSave(id, text)}
+          onBlur={() => onSave(id, field, text)}
           disabled={disabled}
-          placeholder={disabled ? "-" : "Isi catatan manual di sini..."}
-          className={`w-full p-2 text-sm border rounded-lg outline-none resize-none transition-colors print:border-none print:bg-transparent print:p-0 print:resize-none ${
-            disabled
-              ? 'bg-transparent border-transparent text-slate-700 cursor-default'
-              : 'border-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-slate-50 hover:bg-white'
+          placeholder={disabled ? "-" : placeholder || "Ketik..."}
+          className={`w-full p-2 text-sm border rounded-lg outline-none resize-none min-w-[150px] transition-colors print:border-none print:bg-transparent print:p-0 print:resize-none ${
+            disabled ? 'bg-transparent border-transparent text-slate-700 cursor-default' : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white shadow-sm'
           }`}
           rows="2"
         />
@@ -53,9 +68,11 @@
     };
 
     function App() {
+      const [activeTab, setActiveTab] = useState('pendaftaran');
       const [peserta, setPeserta] = useState([]);
       const [namaBaru, setNamaBaru] = useState('');
       const [kelasBaru, setKelasBaru] = useState('');
+      const [nikBaru, setNikBaru] = useState('');
       const [koneksi, setKoneksi] = useState('Memuat data...');
       const [isLoading, setIsLoading] = useState(false);
       
@@ -63,17 +80,34 @@
       const [showLogin, setShowLogin] = useState(false);
       const [pin, setPin] = useState('');
       const [pinError, setPinError] = useState('');
-      const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: null });
+      const [confirmDialog, setConfirmDialog] = useState({ isOpen: false, message: '', onConfirm: null, isDanger: false });
       const [alertDialog, setAlertDialog] = useState({ isOpen: false, title: '', message: '' });
       const [editingId, setEditingId] = useState(null);
-      const [editForm, setEditForm] = useState({ nama: '', kelas: '' });
-
-      // State untuk PWA Install Prompt
+      const [editForm, setEditForm] = useState({ nama: '', nik: '', kelas: '' });
       const [deferredPrompt, setDeferredPrompt] = useState(null);
+
+      // State Fleksibel untuk Tab Pendaftaran
+      const [activePendaftaranDocs, setActivePendaftaranDocs] = useState(() => {
+        const saved = localStorage.getItem('activePendaftaranSettings');
+        if (saved) return JSON.parse(saved);
+        return DAFTAR_PENDAFTARAN.reduce((acc, doc) => ({ ...acc, [doc.id]: true }), {});
+      });
+
+      // State Fleksibel untuk Tab Berkas
+      const [activeDocs, setActiveDocs] = useState(() => {
+        const saved = localStorage.getItem('activeDocsSettings');
+        if (saved) return JSON.parse(saved);
+        return DAFTAR_DOKUMEN.reduce((acc, doc) => ({ ...acc, [doc.id]: true }), {});
+      });
+      
+      const [showSettings, setShowSettings] = useState(false);
+
+      const [searchTerm, setSearchTerm] = useState('');
+      const [filterStatus, setFilterStatus] = useState('all');
+      const [sortBy, setSortBy] = useState('terbaru');
 
       const showAlert = (title, message) => setAlertDialog({ isOpen: true, title, message });
 
-      // Fungsi untuk mengambil data dari Google Sheets
       const loadData = async () => {
         if (GOOGLE_SHEET_URL.includes('ISI_CONTOH_URL')) {
           setKoneksi('URL Google Sheet belum diisi!');
@@ -83,31 +117,36 @@
         setIsLoading(true);
         setKoneksi('Menyinkronkan...');
         try {
-          const response = await fetch(GOOGLE_SHEET_URL, {
-            method: "GET",
-            redirect: "follow"
-          });
-          
+          const response = await fetch(GOOGLE_SHEET_URL, { method: "GET", redirect: "follow" });
           const data = await response.json();
           
           const formattedData = data.map(item => ({
             ...item,
+            nik: item.nik || '-',
+            data1: item.data1 || '',
+            data2: item.data2 || '',
+            daftar: item.daftar === true || item.daftar === 'true' || item.daftar === 'TRUE',
+            updateProfil: item.updateProfil === true || item.updateProfil === 'true' || item.updateProfil === 'TRUE',
+            pilihSkema: item.pilihSkema === true || item.pilihSkema === 'true' || item.pilihSkema === 'TRUE',
+            uploadBerkas: item.uploadBerkas === true || item.uploadBerkas === 'true' || item.uploadBerkas === 'TRUE',
+            apl: item.apl === true || item.apl === 'true' || item.apl === 'TRUE',
+            jadwalUjian: item.jadwalUjian === true || item.jadwalUjian === 'true' || item.jadwalUjian === 'TRUE',
+            finish: item.finish === true || item.finish === 'true' || item.finish === 'TRUE',
             ktp: item.ktp === true || item.ktp === 'true' || item.ktp === 'TRUE',
             foto: item.foto === true || item.foto === 'true' || item.foto === 'TRUE',
             rapot: item.rapot === true || item.rapot === 'true' || item.rapot === 'TRUE',
             sertifikat: item.sertifikat === true || item.sertifikat === 'true' || item.sertifikat === 'TRUE',
             suratKeterangan: item.suratKeterangan === true || item.suratKeterangan === 'true' || item.suratKeterangan === 'TRUE',
+            ijazah: item.ijazah === true || item.ijazah === 'true' || item.ijazah === 'TRUE',
+            kk: item.kk === true || item.kk === 'true' || item.kk === 'TRUE',
+            akta: item.akta === true || item.akta === 'true' || item.akta === 'TRUE',
           }));
           
-          setPeserta(formattedData.sort((a, b) => a.createdAt - b.createdAt));
+          setPeserta(formattedData);
           setKoneksi('Terhubung (Google Sheets)');
         } catch (error) {
-          console.error("Gagal memuat data:", error);
-          if (error.message && error.message.includes('Failed to fetch')) {
-            setKoneksi('Error Akses: Pastikan Deploy Apps Script diatur ke "Siapa Saja"');
-          } else {
-            setKoneksi('Gagal terhubung');
-          }
+          console.error("Gagal memuat:", error);
+          setKoneksi('Gagal terhubung');
         } finally {
           setIsLoading(false);
         }
@@ -119,93 +158,71 @@
         return () => clearInterval(interval);
       }, []);
 
-      // Setup PWA Manifest & Deteksi Install Prompt
       useEffect(() => {
-        // 1. Injeksi Manifest PWA secara otomatis (Kode ini menyamarkan file manifest.json)
+        localStorage.setItem('activeDocsSettings', JSON.stringify(activeDocs));
+        localStorage.setItem('activePendaftaranSettings', JSON.stringify(activePendaftaranDocs));
+      }, [activeDocs, activePendaftaranDocs]);
+
+      useEffect(() => {
         const manifest = {
-          name: "Sistem Pengecekan Berkas USK",
-          short_name: "CekBerkas",
-          start_url: window.location.href,
-          display: "standalone",
-          background_color: "#f8fafc",
-          theme_color: "#2563eb",
-          icons: [
-            { src: "https://cdn-icons-png.flaticon.com/512/11546/11546470.png", sizes: "192x192", type: "image/png" },
-            { src: "https://cdn-icons-png.flaticon.com/512/11546/11546470.png", sizes: "512x512", type: "image/png" }
-          ]
+          name: "Sistem Pengecekan Berkas", short_name: "CekBerkas",
+          start_url: window.location.href, display: "standalone",
+          background_color: "#f8fafc", theme_color: "#2563eb",
+          icons: [{ src: "https://cdn-icons-png.flaticon.com/512/2904/2904838.png", sizes: "192x192", type: "image/png" }, { src: "https://cdn-icons-png.flaticon.com/512/2904/2904838.png", sizes: "512x512", type: "image/png" }]
         };
         const manifestUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
         let link = document.querySelector('link[rel="manifest"]');
-        if (!link) {
-          link = document.createElement('link');
-          link.rel = 'manifest';
-          document.head.appendChild(link);
-        }
+        if (!link) { link = document.createElement('link'); link.rel = 'manifest'; document.head.appendChild(link); }
         link.href = manifestUrl;
 
-        // 2. Tangkap event prompt install dari browser
-        const handleBeforeInstallPrompt = (e) => {
-          e.preventDefault();
-          setDeferredPrompt(e); // Simpan event ini untuk dimunculkan saat tombol diklik
-        };
+        const handleBeforeInstallPrompt = (e) => { e.preventDefault(); setDeferredPrompt(e); };
         window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-
         return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
       }, []);
 
-      // Fungsi untuk memicu jendela instalasi
       const handleInstallApp = () => {
         if (deferredPrompt) {
           deferredPrompt.prompt();
-          deferredPrompt.userChoice.then((choiceResult) => {
-            if (choiceResult.outcome === 'accepted') {
-              console.log('User menerima instalasi PWA');
-            }
-            setDeferredPrompt(null);
-          });
+          deferredPrompt.userChoice.then(() => { setDeferredPrompt(null); });
         }
       };
 
       const sendToGoogleSheets = async (data) => {
         try {
           await fetch(GOOGLE_SHEET_URL, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'text/plain;charset=utf-8'
-            },
-            body: JSON.stringify(data),
-            redirect: "follow"
+            method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+            body: JSON.stringify(data), redirect: "follow"
           });
           loadData(); 
         } catch (error) {
-          console.error("Error mengirim ke Sheets:", error);
-          showAlert("Error Akses", "Gagal menyimpan ke database. Cek koneksi internet Anda.");
+          console.error("Error mengirim:", error);
+          showAlert("Error", "Gagal menyimpan data.");
         }
       };
 
       const handleLoginClick = () => { setShowLogin(true); setPin(''); setPinError(''); };
       const handlePinSubmit = (e) => {
         e.preventDefault();
-        if (pin === "tkrocoding") { setIsAdmin(true); setShowLogin(false); } 
+        if (pin === "1234") { setIsAdmin(true); setShowLogin(false); } 
         else { setPinError("PIN salah!"); }
       };
       const requestLogout = () => {
         setConfirmDialog({
-          isOpen: true,
-          message: "Yakin ingin keluar dari mode Admin?",
-          onConfirm: () => { setIsAdmin(false); setEditingId(null); setConfirmDialog({ isOpen: false, message: '', onConfirm: null }); }
+          isOpen: true, message: "Yakin ingin keluar dari mode Admin?",
+          onConfirm: () => { setIsAdmin(false); setEditingId(null); setConfirmDialog({ isOpen: false }); }
         });
       };
 
-      const toggleStatus = async (id, dokumen) => {
+      const toggleStatus = async (id, field) => {
         const p = peserta.find(x => x.id === id);
         if (!p) return;
-        setPeserta(prev => prev.map(item => item.id === id ? { ...item, [dokumen]: !item[dokumen] } : item));
-        sendToGoogleSheets({ action: "update", id: id, [dokumen]: !p[dokumen] });
+        setPeserta(prev => prev.map(item => item.id === id ? { ...item, [field]: !item[field] } : item));
+        sendToGoogleSheets({ action: "update", id: id, [field]: !p[field] });
       };
 
-      const updateKeterangan = async (id, teks) => {
-        sendToGoogleSheets({ action: "update", id: id, keterangan: teks });
+      const updateTextField = async (id, field, teks) => { 
+        setPeserta(prev => prev.map(item => item.id === id ? { ...item, [field]: teks } : item));
+        sendToGoogleSheets({ action: "update", id: id, [field]: teks }); 
       };
 
       const tambahPeserta = async (e) => {
@@ -214,40 +231,52 @@
 
         const newId = Date.now().toString();
         const pesertaBaru = {
-          action: "create",
-          id: newId,
-          nama: namaBaru,
-          kelas: kelasBaru || '-',
-          ktp: false, foto: false, rapot: false, sertifikat: false, suratKeterangan: false,
-          keterangan: '',
-          createdAt: Date.now()
+          action: "create", id: newId, 
+          nama: namaBaru, nik: nikBaru || '-', kelas: kelasBaru || '-',
+          data1: '', data2: '', daftar: false, updateProfil: false, pilihSkema: false, uploadBerkas: false, apl: false, jadwalUjian: false, finish: false,
+          ktp: false, foto: false, rapot: false, sertifikat: false, suratKeterangan: false, ijazah: false, kk: false, akta: false, keterangan: '', createdAt: Date.now()
         };
 
-        setNamaBaru('');
-        setKelasBaru('');
+        setNamaBaru(''); setNikBaru(''); setKelasBaru('');
         setPeserta(prev => [...prev, pesertaBaru]);
         sendToGoogleSheets(pesertaBaru);
       };
 
       const hapusPeserta = async (id, nama) => {
         setConfirmDialog({
-          isOpen: true,
-          message: `Yakin ingin menghapus data ${nama} dari database?`,
+          isOpen: true, message: `Yakin ingin menghapus data ${nama}?`,
           onConfirm: async () => {
             setPeserta(prev => prev.filter(p => p.id !== id)); 
             sendToGoogleSheets({ action: "delete", id: id });
-            setConfirmDialog({ isOpen: false, message: '', onConfirm: null });
+            setConfirmDialog({ isOpen: false });
           }
         });
       };
 
-      const mulaiEdit = (p) => { setEditingId(p.id); setEditForm({ nama: p.nama, kelas: p.kelas }); };
+      const hapusSemuaPeserta = () => {
+        if (peserta.length === 0) return showAlert("Info", "Data sudah kosong.");
+        setConfirmDialog({
+          isOpen: true, isDanger: true,
+          message: "⚠️ PERINGATAN: Yakin ingin menghapus SEMUA DATA secara permanen? Tindakan ini tidak bisa dibatalkan!",
+          onConfirm: async () => {
+            setConfirmDialog({ isOpen: false });
+            setIsLoading(true); setKoneksi("Menghapus massal...");
+            for (const p of peserta) {
+              try { await fetch(GOOGLE_SHEET_URL, { method: 'POST', body: JSON.stringify({ action: "delete", id: p.id }), redirect: "follow" }); } catch(e){}
+            }
+            setPeserta([]); setIsLoading(false); setKoneksi("Terhubung");
+            showAlert("Sukses", "Semua data berhasil dihapus.");
+          }
+        });
+      };
+
+      const mulaiEdit = (p) => { setEditingId(p.id); setEditForm({ nama: p.nama, nik: p.nik, kelas: p.kelas }); };
       const batalEdit = () => { setEditingId(null); };
       const simpanEdit = async (id) => {
         if (!editForm.nama.trim()) { showAlert("Peringatan", "Nama tidak boleh kosong!"); return; }
-        setPeserta(prev => prev.map(p => p.id === id ? { ...p, nama: editForm.nama, kelas: editForm.kelas } : p));
+        setPeserta(prev => prev.map(p => p.id === id ? { ...p, nama: editForm.nama, nik: editForm.nik, kelas: editForm.kelas } : p));
         setEditingId(null);
-        sendToGoogleSheets({ action: "update", id: id, nama: editForm.nama, kelas: editForm.kelas || '-' });
+        sendToGoogleSheets({ action: "update", id: id, nama: editForm.nama, nik: editForm.nik || '-', kelas: editForm.kelas || '-' });
       };
 
       const handleImport = async (e) => {
@@ -260,340 +289,454 @@
           const baris = text.split(/\r?\n/);
           let count = 0;
           let currentTimestamp = Date.now();
-          
-          setKoneksi('Mengimpor data...');
-          setIsLoading(true);
+          setKoneksi('Mengimpor...'); setIsLoading(true);
 
           for (const barisData of baris) {
             if (!barisData.trim()) continue;
             const parts = barisData.split(',');
             const nama = parts[0]?.trim();
             const kelas = parts[1]?.trim() || '-';
+            const nik = parts[2]?.trim() || '-';
 
             if (nama && nama.toLowerCase() !== 'nama') {
               const newId = (currentTimestamp++).toString();
               const pesertaBaru = {
-                action: "create", id: newId, nama: nama, kelas: kelas,
-                ktp: false, foto: false, rapot: false, sertifikat: false, suratKeterangan: false,
-                keterangan: '', createdAt: currentTimestamp
+                action: "create", id: newId, 
+                nama: nama, nik: nik, kelas: kelas,
+                data1: '', data2: '', daftar: false, updateProfil: false, pilihSkema: false, uploadBerkas: false, apl: false, jadwalUjian: false, finish: false,
+                ktp: false, foto: false, rapot: false, sertifikat: false, suratKeterangan: false, ijazah: false, kk: false, akta: false, keterangan: '', createdAt: currentTimestamp
               };
-              
               setPeserta(prev => [...prev, pesertaBaru]); 
-              
               try {
-                await fetch(GOOGLE_SHEET_URL, {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-                  body: JSON.stringify(pesertaBaru),
-                  redirect: "follow"
-                });
+                await fetch(GOOGLE_SHEET_URL, { method: 'POST', body: JSON.stringify(pesertaBaru), redirect: "follow" });
                 count++;
-              } catch (err) {
-                console.error("Gagal import baris:", err);
-              }
+              } catch (err) {}
             }
           }
-
-          setKoneksi('Terhubung (Google Sheets)');
-          setIsLoading(false);
-          if (count > 0) showAlert("Sukses", `Berhasil mengimpor ${count} data siswa ke database.`);
+          setKoneksi('Terhubung'); setIsLoading(false);
+          if (count > 0) showAlert("Sukses", `Berhasil impor ${count} data siswa.`);
         };
-        reader.readAsText(file);
-        e.target.value = null;
+        reader.readAsText(file); e.target.value = null;
       };
 
       const handleBackup = () => {
-        if (peserta.length === 0) {
-          showAlert("Peringatan", "Tidak ada data untuk dibackup.");
-          return;
+        if (peserta.length === 0) return showAlert("Peringatan", "Tidak ada data untuk dibackup.");
+        
+        let headers = [];
+        if (activeTab === 'pendaftaran') {
+          headers = ['Nama', 'NIK', 'Kelas'];
+          DAFTAR_PENDAFTARAN.forEach(doc => { if (activePendaftaranDocs[doc.id]) headers.push(doc.label); });
+        } else {
+          headers = ['Nama', 'NIK', 'Kelas'];
+          DAFTAR_DOKUMEN.forEach(doc => { if (activeDocs[doc.id]) headers.push(doc.label); });
         }
-
-        const headers = ['Nama', 'Kelas', 'KTP', 'Foto', 'Rapot', 'Sertifikat PKL', 'Surat Keterangan', 'Keterangan'];
+        
         const csvRows = [headers.join(',')];
 
         peserta.forEach(p => {
-          const row = [
-            `"${p.nama}"`, `"${p.kelas}"`,
-            p.ktp ? 'Sudah' : 'Belum', p.foto ? 'Sudah' : 'Belum',
-            p.rapot ? 'Sudah' : 'Belum', p.sertifikat ? 'Sudah' : 'Belum',
-            p.suratKeterangan ? 'Sudah' : 'Belum', `"${p.keterangan || ''}"`
-          ];
+          let row = [`"${p.nama}"`, `"${p.nik}"`, `"${p.kelas}"`];
+          if (activeTab === 'pendaftaran') {
+            DAFTAR_PENDAFTARAN.forEach(doc => {
+              if (activePendaftaranDocs[doc.id]) {
+                if (doc.isText) row.push(`"${p[doc.id] || ''}"`);
+                else row.push(p[doc.id] ? 'Sudah' : 'Belum');
+              }
+            });
+          } else {
+            DAFTAR_DOKUMEN.forEach(doc => {
+              if (activeDocs[doc.id]) {
+                if (doc.isText) row.push(`"${p[doc.id] || ''}"`);
+                else row.push(p[doc.id] ? 'Sudah' : 'Belum');
+              }
+            });
+          }
           csvRows.push(row.join(','));
         });
 
-        const csvString = csvRows.join('\n');
-        const blob = new Blob([csvString], { type: 'text/csv;charset=utf-8;' });
+        const blob = new Blob([csvRows.join('\n')], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Backup_Data_Berkas_${new Date().toISOString().split('T')[0]}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
+        const link = document.createElement('a'); link.href = url;
+        link.download = `Backup_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`;
+        document.body.appendChild(link); link.click(); document.body.removeChild(link); URL.revokeObjectURL(url);
       };
 
       const handlePrint = () => {
-        if (peserta.length === 0) {
-          showAlert("Peringatan", "Tidak ada data untuk dicetak.");
-          return;
+        if (peserta.length === 0) return showAlert("Peringatan", "Tidak ada data untuk dicetak.");
+
+        const st = (val) => val ? '<td class="status-sudah">Sudah</td>' : '<td class="status-belum">Belum</td>';
+        let tableRows = '';
+        let thHtml = '';
+
+        if (activeTab === 'pendaftaran') {
+          thHtml = '<th style="width: 30px;">No</th><th>Nama Lengkap</th><th>NIK</th>';
+          DAFTAR_PENDAFTARAN.forEach(doc => { if (activePendaftaranDocs[doc.id]) thHtml += `<th>${doc.label}</th>`; });
+          
+          tableRows = processedPeserta.map((p, index) => {
+            let rowHtml = `<tr><td style="text-align: center;">${index + 1}</td><td>${p.nama}</td><td>${p.nik}</td>`;
+            DAFTAR_PENDAFTARAN.forEach(doc => {
+              if (activePendaftaranDocs[doc.id]) {
+                if (doc.isText) rowHtml += `<td>${p[doc.id] || '-'}</td>`;
+                else rowHtml += st(p[doc.id]);
+              }
+            });
+            rowHtml += '</tr>';
+            return rowHtml;
+          }).join('');
+        } else {
+          thHtml = '<th style="width: 30px;">No</th><th>Nama Lengkap</th><th>Kelas</th>';
+          DAFTAR_DOKUMEN.forEach(doc => { if (activeDocs[doc.id]) thHtml += `<th>${doc.label}</th>`; });
+          tableRows = processedPeserta.map((p, index) => {
+            let rowHtml = `<tr><td style="text-align: center;">${index + 1}</td><td>${p.nama}</td><td>${p.kelas}</td>`;
+            DAFTAR_DOKUMEN.forEach(doc => {
+              if (activeDocs[doc.id]) {
+                if (doc.isText) rowHtml += `<td>${p[doc.id] || '-'}</td>`;
+                else rowHtml += st(p[doc.id]);
+              }
+            });
+            rowHtml += '</tr>';
+            return rowHtml;
+          }).join('');
         }
 
-        const tableRows = peserta.map((p, index) => {
-          const st = (val) => val ? '<td class="status-sudah">Sudah</td>' : '<td class="status-belum">Belum</td>';
-          return '<tr>' +
-            '<td style="text-align: center;">' + (index + 1) + '</td>' +
-            '<td>' + p.nama + '</td>' +
-            '<td>' + p.kelas + '</td>' +
-            st(p.ktp) + st(p.foto) + st(p.rapot) + st(p.sertifikat) + st(p.suratKeterangan) +
-            '<td>' + (p.keterangan || '-') + '</td>' +
-          '</tr>';
-        }).join('');
+        const titleText = activeTab === 'pendaftaran' ? 'Laporan Progres Pendaftaran' : 'Laporan Pengecekan Berkas';
 
         const printWindow = window.open('', '_blank');
         if (printWindow) {
           printWindow.document.write(`
             <html>
               <head>
-                <title>Cetak Laporan - Pengecekan Berkas</title>
+                <title>${titleText}</title>
                 <style>
                   body { font-family: Arial, sans-serif; padding: 20px; color: #333; }
-                  .header { text-align: center; margin-bottom: 30px; }
-                  .header h1 { margin: 0 0 10px 0; font-size: 24px; }
-                  .header p { margin: 0; color: #666; }
-                  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-                  th, td { border: 1px solid #ccc; padding: 10px 12px; text-align: left; font-size: 14px; }
-                  th { background-color: #f4f4f4; font-weight: bold; }
+                  h1 { margin: 0 0 10px 0; font-size: 24px; text-align: center; }
+                  p { margin: 0; color: #666; text-align: center; margin-bottom: 20px;}
+                  table { width: 100%; border-collapse: collapse; }
+                  th, td { border: 1px solid #ccc; padding: 6px 8px; text-align: left; font-size: 12px; }
+                  th { background-color: #f4f4f4; text-align: center; }
                   .status-sudah { color: #16a34a; font-weight: bold; text-align: center; }
                   .status-belum { color: #dc2626; font-weight: bold; text-align: center; }
-                  @media print {
-                    @page { margin: 1cm; }
-                    body { padding: 0; }
-                  }
                 </style>
               </head>
               <body>
-                <div class="header">
-                  <h1>Laporan Pengecekan Berkas</h1>
-                  <p>Tanggal Cetak: ${new Date().toLocaleDateString('id-ID', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</p>
-                  <p>Total Peserta: ${peserta.length}</p>
-                </div>
+                <h1>${titleText}</h1>
+                <p>Dicetak: ${new Date().toLocaleDateString('id-ID')} | Filter: ${filterStatus.toUpperCase()} | Ditampilkan: ${processedPeserta.length} Siswa</p>
                 <table>
-                  <thead>
-                    <tr>
-                      <th style="text-align: center; width: 40px;">No</th>
-                      <th>Nama Lengkap</th>
-                      <th>Kelas</th>
-                      <th style="text-align: center;">KTP</th>
-                      <th style="text-align: center;">Foto</th>
-                      <th style="text-align: center;">Rapot</th>
-                      <th style="text-align: center;">Sertifikat PKL</th>
-                      <th style="text-align: center;">Surat Keterangan</th>
-                      <th>Keterangan</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${tableRows}
-                  </tbody>
+                  <thead><tr>${thHtml}</tr></thead>
+                  <tbody>${tableRows}</tbody>
                 </table>
-                <script>
-                  window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };
-                <\/script>
+                <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); };<\/script>
               </body>
             </html>
           `);
           printWindow.document.close();
+        } else { window.print(); }
+      };
+
+      // MENGHITUNG KELENGKAPAN BERDASARKAN TAB YANG AKTIF
+      const checkLengkap = (p) => {
+        if (activeTab === 'pendaftaran') {
+          return DAFTAR_PENDAFTARAN.every(doc => {
+            if (!activePendaftaranDocs[doc.id]) return true; // Jika dimatikan, abaikan
+            if (doc.isText) return p[doc.id] && p[doc.id].trim() !== ''; // Text isian harus diisi
+            return p[doc.id]; // Tombol harus status 'Sudah'
+          });
         } else {
-          showAlert("Peringatan", "Gagal membuka jendela cetak. Pastikan pop-up tidak diblokir.");
-          window.print();
+          return DAFTAR_DOKUMEN.every(doc => {
+            if (!activeDocs[doc.id]) return true;     
+            if (doc.isText) return true; // Keterangan di tab berkas diabaikan untuk kelengkapan
+            return p[doc.id];                         
+          });
         }
       };
 
+      const processedPeserta = peserta
+        .filter(p => {
+          const searchMatch = p.nama.toLowerCase().includes(searchTerm.toLowerCase()) || p.kelas.toLowerCase().includes(searchTerm.toLowerCase()) || p.nik.includes(searchTerm);
+          const isLengkap = checkLengkap(p);
+          const filterMatch = filterStatus === 'all' ? true : (filterStatus === 'lengkap' ? isLengkap : !isLengkap);
+          return searchMatch && filterMatch;
+        })
+        .sort((a, b) => {
+          if (sortBy === 'nama_asc') return a.nama.localeCompare(b.nama);
+          if (sortBy === 'nama_desc') return b.nama.localeCompare(a.nama);
+          if (sortBy === 'kelas_asc') return a.kelas.localeCompare(b.kelas);
+          return a.createdAt - b.createdAt;
+        });
+
       const totalPeserta = peserta.length;
-      const totalSelesai = peserta.filter(p => p.ktp && p.foto && p.rapot && p.sertifikat && p.suratKeterangan).length;
+      const totalSelesai = peserta.filter(p => checkLengkap(p)).length;
+      const persentase = totalPeserta === 0 ? 0 : Math.round((totalSelesai / totalPeserta) * 100);
 
       const TombolStatus = ({ status, onClick, disabled }) => {
         return (
           <button
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
-            className={`flex items-center justify-center w-full gap-2 px-3 py-2 text-sm font-semibold rounded-lg transition-all duration-200 shadow-sm print:shadow-none print:bg-transparent print:border-none print:p-0 print:justify-start ${
+            className={`flex items-center justify-center w-full gap-1 px-2 py-2 text-xs font-semibold rounded-lg transition-all duration-200 shadow-sm print:shadow-none print:bg-transparent print:border-none print:p-0 print:justify-start ${
               status ? 'bg-green-100 text-green-700 border-green-300' : 'bg-rose-100 text-rose-700 border-rose-300'
             } ${disabled ? 'opacity-80 cursor-default border-transparent shadow-none' : (status ? 'hover:bg-green-200 cursor-pointer border' : 'hover:bg-rose-200 cursor-pointer border')}`}
           >
-            {status ? <i className="fas fa-check-circle text-base"></i> : <i className="fas fa-times-circle text-base"></i>}
+            {status ? <i className="fas fa-check-circle"></i> : <i className="fas fa-times-circle"></i>}
             {status ? 'Sudah' : 'Belum'}
           </button>
         );
       };
 
+      // Helper untuk memunculkan modal setting sesuai Tab yang aktif
+      const activeSettingsList = activeTab === 'pendaftaran' ? DAFTAR_PENDAFTARAN : DAFTAR_DOKUMEN;
+      const activeSettingsState = activeTab === 'pendaftaran' ? activePendaftaranDocs : activeDocs;
+      const setActiveSettingsState = activeTab === 'pendaftaran' ? setActivePendaftaranDocs : setActiveDocs;
+
       return (
-        <div className="min-h-screen p-6 font-sans print:bg-white print:p-0">
-          <div className="max-w-6xl mx-auto space-y-6 print:space-y-4">
+        <div className="min-h-screen p-4 md:p-6 font-sans print:bg-white print:p-0 text-sm">
+          <div className="max-w-[1400px] mx-auto space-y-4">
             
-            {/* Header & Statistik */}
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 flex flex-col md:flex-row justify-between items-start md:items-center gap-4 print:shadow-none print:border-none print:p-0">
+            {/* Header Utama */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 print:hidden">
               <div>
-                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
-                  Sistem Pengecekan Berkas
-                  <span className={`text-xs px-2 py-1 rounded-full text-white font-medium print:hidden ${koneksi.includes('Terhubung') ? 'bg-emerald-500' : (koneksi.includes('belum diisi') ? 'bg-rose-500' : 'bg-amber-500')}`}>
+                <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2 mb-1">
+                  Sistem Tata Usaha Terpadu
+                  <span className={`text-[10px] px-2 py-1 rounded-full text-white font-medium ${koneksi.includes('Terhubung') ? 'bg-emerald-500' : 'bg-amber-500'}`}>
                     {koneksi}
                   </span>
                 </h1>
-                <p className="text-slate-500 mt-1">Database menggunakan Google Sheets.</p>
+                <p className="text-slate-500 text-sm">Pusat Data: Progres Pendaftaran & Pengecekan Berkas Siswa</p>
               </div>
-              <div className="flex gap-4 items-center">
-                
-                <button onClick={loadData} disabled={isLoading} className="text-slate-500 hover:text-blue-600 print:hidden transition-colors" title="Segarkan Data">
-                  <i className={`fas fa-sync-alt text-xl ${isLoading ? 'animate-spin text-blue-600' : ''}`}></i>
+              <div className="flex gap-3 items-center flex-wrap">
+                <button onClick={loadData} disabled={isLoading} className="text-slate-400 hover:text-blue-600 transition-colors p-2" title="Segarkan Data">
+                  <i className={`fas fa-sync-alt text-lg ${isLoading ? 'animate-spin text-blue-600' : ''}`}></i>
                 </button>
 
-                <div className="bg-blue-50 px-4 py-3 rounded-xl border border-blue-100 text-center min-w-[120px] print:bg-transparent print:border-slate-300">
-                  <p className="text-blue-600 text-sm font-medium print:text-slate-600">Total Peserta</p>
-                  <p className="text-2xl font-bold text-blue-700 print:text-slate-900">{totalPeserta}</p>
-                </div>
-                <div className="bg-green-50 px-4 py-3 rounded-xl border border-green-100 text-center min-w-[120px] print:bg-transparent print:border-slate-300">
-                  <p className="text-green-600 text-sm font-medium print:text-slate-600">Berkas Lengkap</p>
-                  <p className="text-2xl font-bold text-green-700 print:text-slate-900">{totalSelesai}</p>
-                </div>
-                
-                {/* Tombol Install PWA */}
                 {deferredPrompt && (
-                  <div className="print:hidden border-l border-slate-200 pl-4 ml-2 flex items-center">
-                    <button onClick={handleInstallApp} className="flex flex-col items-center justify-center gap-1 text-blue-600 hover:text-blue-700 transition-colors">
-                      <i className="fas fa-download text-xl"></i>
-                      <span className="text-xs font-semibold">Install App</span>
-                    </button>
-                  </div>
+                  <button onClick={handleInstallApp} className="flex items-center gap-2 bg-blue-50 text-blue-700 hover:bg-blue-100 px-4 py-2 rounded-lg font-semibold transition-colors border border-blue-200">
+                    <i className="fas fa-download"></i> Install App
+                  </button>
                 )}
 
-                <div className="print:hidden border-l border-slate-200 pl-4 ml-2 flex items-center">
-                  {isAdmin ? (
-                    <button onClick={requestLogout} className="flex flex-col items-center justify-center gap-1 text-rose-600 hover:text-rose-700 transition-colors">
-                      <i className="fas fa-lock text-xl"></i>
-                      <span className="text-xs font-semibold">Logout</span>
+                {isAdmin ? (
+                  <div className="flex gap-2">
+                    <button onClick={() => setShowSettings(true)} className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-lg font-semibold transition-colors border border-slate-200">
+                      <i className="fas fa-cog"></i> Pengaturan Kolom
                     </button>
-                  ) : (
-                    <button onClick={handleLoginClick} className="flex flex-col items-center justify-center gap-1 text-slate-500 hover:text-slate-800 transition-colors">
-                      <i className="fas fa-unlock text-xl"></i>
-                      <span className="text-xs font-semibold">Login Admin</span>
+                    <button onClick={requestLogout} className="flex items-center gap-2 bg-rose-50 text-rose-700 hover:bg-rose-100 px-4 py-2 rounded-lg font-semibold transition-colors border border-rose-200">
+                      <i className="fas fa-lock"></i> Logout
                     </button>
-                  )}
-                </div>
+                  </div>
+                ) : (
+                  <button onClick={handleLoginClick} className="flex items-center gap-2 bg-slate-100 text-slate-700 hover:bg-slate-200 px-4 py-2 rounded-lg font-semibold transition-colors">
+                    <i className="fas fa-unlock"></i> Login Admin
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* Form Tambah Peserta & Aksi */}
-            {isAdmin ? (
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 print:hidden">
-                <form onSubmit={tambahPeserta} className="flex flex-col md:flex-row gap-3 items-end">
-                  <div className="flex-1 w-full">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Nama Peserta</label>
-                    <input type="text" value={namaBaru} onChange={(e) => setNamaBaru(e.target.value)} placeholder="Masukkan nama lengkap..." className="w-full pl-4 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
-                  </div>
-                  <div className="w-full md:w-32">
-                    <label className="block text-sm font-medium text-slate-700 mb-1">Kelas</label>
-                    <input type="text" value={kelasBaru} onChange={(e) => setKelasBaru(e.target.value)} placeholder="Contoh: 10-A" className="w-full pl-4 pr-4 py-2.5 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all" />
-                  </div>
-                  <div className="flex gap-2 w-full md:w-auto overflow-x-auto pb-2 md:pb-0">
-                    <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 h-auto whitespace-nowrap">
-                      <i className="fas fa-user-plus text-lg"></i> Tambah
-                    </button>
+            {/* NAVIGASI TAB MENU */}
+            <div className="flex gap-2 bg-white p-2 rounded-xl border border-slate-100 shadow-sm overflow-x-auto print:hidden">
+              <button 
+                onClick={() => setActiveTab('pendaftaran')} 
+                className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'pendaftaran' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                <i className="fas fa-tasks"></i> Dasbor Progres Pendaftaran
+              </button>
+              <button 
+                onClick={() => setActiveTab('berkas')} 
+                className={`px-6 py-3 rounded-lg font-bold flex items-center gap-2 whitespace-nowrap transition-all ${activeTab === 'berkas' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-500 hover:bg-slate-50'}`}
+              >
+                <i className="fas fa-folder-open"></i> Pengecekan Berkas Siswa
+              </button>
+            </div>
 
-                    <label className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 cursor-pointer h-auto whitespace-nowrap">
-                      <i className="fas fa-upload text-lg"></i> Import
+            {/* DASHBOARD GRAFIK KELENGKAPAN */}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-slate-100 print:hidden">
+              <div className="flex justify-between items-end mb-2">
+                <div>
+                  <h2 className="text-base font-bold text-slate-800">
+                    {activeTab === 'pendaftaran' ? 'Progres Pendaftaran Global' : 'Progres Kelengkapan Berkas'}
+                  </h2>
+                  <p className="text-xs text-slate-500">
+                    {activeTab === 'pendaftaran' ? 'Telah mengisi Form Data dan semua tahapan pendaftaran' : 'Sesuai pengaturan dokumen yang aktif'}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <span className="text-2xl font-black text-blue-600">{persentase}%</span>
+                  <p className="text-xs font-semibold text-slate-500">{totalSelesai} dari {totalPeserta} Lengkap</p>
+                </div>
+              </div>
+              <div className="w-full bg-slate-100 rounded-full h-4 border border-slate-200 overflow-hidden">
+                <div className={`h-full rounded-full transition-all duration-1000 ease-out ${persentase === 100 ? 'bg-emerald-500' : 'bg-blue-500'}`} style={{ width: `${persentase}%` }}></div>
+              </div>
+            </div>
+
+            {/* TOOLBAR: Search, Filter, Sort */}
+            <div className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex flex-col md:flex-row gap-3 print:hidden">
+              <div className="flex-1 relative">
+                <i className="fas fa-search absolute left-3 top-3 text-slate-400"></i>
+                <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Cari nama, kelas, atau NIK..." className="w-full pl-9 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none" />
+              </div>
+              <div className="flex gap-2 w-full md:w-auto overflow-x-auto">
+                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-[150px]">
+                  <option value="all">Semua Status</option>
+                  <option value="lengkap">✅ Status Selesai</option>
+                  <option value="belum">❌ Belum Selesai</option>
+                </select>
+                <select value={sortBy} onChange={(e) => setSortBy(e.target.value)} className="bg-slate-50 border border-slate-200 rounded-lg px-3 py-2 outline-none focus:ring-2 focus:ring-blue-500 min-w-[150px]">
+                  <option value="terbaru">⏱️ Urut Terbaru</option>
+                  <option value="nama_asc">🔤 Nama (A - Z)</option>
+                  <option value="nama_desc">🔤 Nama (Z - A)</option>
+                  <option value="kelas_asc">🏫 Kelas</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Form Tambah & Panel Admin */}
+            {isAdmin && (
+              <div className="bg-indigo-50/50 p-5 rounded-2xl border border-indigo-100 print:hidden">
+                <form onSubmit={tambahPeserta} className="flex flex-col lg:flex-row gap-3 items-end">
+                  <div className="flex-1 w-full">
+                    <label className="block text-xs font-bold text-indigo-900 mb-1">Nama Peserta</label>
+                    <input type="text" value={namaBaru} onChange={(e) => setNamaBaru(e.target.value)} placeholder="Nama lengkap..." className="w-full px-3 py-2.5 border border-indigo-200 rounded-lg outline-none focus:border-indigo-500" />
+                  </div>
+                  <div className="w-full lg:w-40">
+                    <label className="block text-xs font-bold text-indigo-900 mb-1">NIK</label>
+                    <input type="number" value={nikBaru} onChange={(e) => setNikBaru(e.target.value)} placeholder="16 Digit NIK" className="w-full px-3 py-2.5 border border-indigo-200 rounded-lg outline-none focus:border-indigo-500" />
+                  </div>
+                  <div className="w-full lg:w-28">
+                    <label className="block text-xs font-bold text-indigo-900 mb-1">Kelas</label>
+                    <input type="text" value={kelasBaru} onChange={(e) => setKelasBaru(e.target.value)} placeholder="10A" className="w-full px-3 py-2.5 border border-indigo-200 rounded-lg outline-none focus:border-indigo-500" />
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 w-full lg:w-auto">
+                    <button type="submit" className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center gap-2"><i className="fas fa-plus"></i> Tambah</button>
+                    
+                    <label className="bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center gap-2 cursor-pointer">
+                      <i className="fas fa-file-import"></i> Import
                       <input type="file" accept=".txt,.csv" className="hidden" onChange={handleImport} />
                     </label>
 
-                    <button type="button" onClick={handleBackup} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 h-auto whitespace-nowrap">
-                      <i className="fas fa-download text-lg"></i> Backup
+                    <button type="button" onClick={handleBackup} className="bg-slate-700 hover:bg-slate-800 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center gap-2">
+                      <i className="fas fa-download"></i> Backup
                     </button>
 
-                    <button type="button" onClick={handlePrint} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 h-auto whitespace-nowrap">
-                      <i className="fas fa-print text-lg"></i> Cetak
+                    <button type="button" onClick={hapusSemuaPeserta} className="bg-rose-600 hover:bg-rose-700 text-white px-4 py-2.5 rounded-lg font-semibold flex items-center gap-2 ml-auto lg:ml-0">
+                      <i className="fas fa-trash-alt"></i> Hapus Semua
                     </button>
                   </div>
                 </form>
               </div>
-            ) : (
-              <div className="bg-white p-4 rounded-2xl shadow-sm border border-slate-100 flex justify-between items-center print:hidden">
-                <p className="text-sm text-slate-500 italic">Anda dalam mode <span className="font-semibold text-slate-700">Read-Only</span>. Login Admin untuk mengedit.</p>
-                <button type="button" onClick={handlePrint} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors flex items-center gap-2 h-auto whitespace-nowrap">
-                  <i className="fas fa-print text-lg"></i> Cetak Laporan
-                </button>
-              </div>
+            )}
+            
+            {!isAdmin && (
+               <div className="flex justify-end print:hidden">
+                  <button type="button" onClick={handlePrint} className="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-lg font-semibold flex items-center gap-2">
+                    <i className="fas fa-print"></i> Cetak Laporan (Sesuai Filter & Tab)
+                  </button>
+               </div>
             )}
 
-            {/* Tabel Data */}
+            {/* TABEL DATA */}
             <div className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print:shadow-none print:border-slate-300">
               <div className="overflow-x-auto">
-                <table className="w-full text-left border-collapse">
+                <table className="w-full text-left border-collapse whitespace-nowrap">
                   <thead>
-                    <tr className="bg-slate-50 border-b border-slate-200">
-                      <th className="p-4 font-semibold text-slate-700 min-w-[150px]">Nama Lengkap</th>
-                      <th className="p-4 font-semibold text-slate-700 w-24">Kelas</th>
-                      <th className="p-4 font-semibold text-slate-700 w-32 text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <i className="fas fa-id-card text-lg text-slate-500"></i> KTP
-                        </div>
-                      </th>
-                      <th className="p-4 font-semibold text-slate-700 w-32 text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <i className="fas fa-image text-lg text-slate-500"></i> Foto
-                        </div>
-                      </th>
-                      <th className="p-4 font-semibold text-slate-700 w-32 text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <i className="fas fa-file-alt text-lg text-slate-500"></i> Rapot
-                        </div>
-                      </th>
-                      <th className="p-4 font-semibold text-slate-700 w-32 text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <i className="fas fa-certificate text-lg text-slate-500"></i> Sertifikat
-                        </div>
-                      </th>
-                      <th className="p-4 font-semibold text-slate-700 w-32 text-center">
-                        <div className="flex flex-col items-center gap-1">
-                          <i className="fas fa-scroll text-lg text-slate-500"></i> Surat Ket
-                        </div>
-                      </th>
-                      <th className="p-4 font-semibold text-slate-700">Keterangan</th>
-                      {isAdmin && <th className="p-4 font-semibold text-slate-700 w-24 text-center print:hidden">Aksi</th>}
+                    <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
+                      <th className="p-3 font-bold min-w-[180px]">Nama Lengkap</th>
+                      {activeTab === 'pendaftaran' && <th className="p-3 font-bold w-40">NIK</th>}
+                      <th className="p-3 font-bold w-20">Kelas</th>
+                      
+                      {/* HEADER PENDAFTARAN (DINAMIS) */}
+                      {activeTab === 'pendaftaran' && DAFTAR_PENDAFTARAN.map(doc => {
+                        if (!activePendaftaranDocs[doc.id]) return null;
+                        if (doc.isText) {
+                          return (
+                            <th key={doc.id} className={`p-3 font-bold min-w-[200px] text-center ${doc.color || ''}`}>
+                              <i className={`fas ${doc.icon} mb-1 text-lg block`}></i> {doc.label}
+                            </th>
+                          );
+                        }
+                        return (
+                          <th key={doc.id} className={`p-3 font-bold w-28 text-center ${doc.color || ''}`}>
+                            <i className={`fas ${doc.icon} mb-1 text-lg block`}></i> {doc.label}
+                          </th>
+                        );
+                      })}
+
+                      {/* HEADER BERKAS (DINAMIS) */}
+                      {activeTab === 'berkas' && DAFTAR_DOKUMEN.map(doc => {
+                        if (!activeDocs[doc.id]) return null;
+                        if (doc.isText) {
+                          return <th key={doc.id} className="p-3 font-bold min-w-[200px]">Keterangan</th>;
+                        }
+                        return (
+                          <th key={doc.id} className={`p-3 font-bold w-28 text-center ${doc.color || ''}`}>
+                            <i className={`fas ${doc.icon} mb-1 text-lg block`}></i> {doc.label}
+                          </th>
+                        );
+                      })}
+
+                      {isAdmin && <th className="p-3 font-bold w-24 text-center print:hidden">Aksi</th>}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {peserta.length === 0 ? (
+                    {processedPeserta.length === 0 ? (
                       <tr>
-                        <td colSpan={isAdmin ? "9" : "8"} className="p-8 text-center text-slate-500">
-                          {koneksi.includes('Error') ? 'Terjadi masalah dengan URL Database.' : 'Belum ada data / Sedang memuat...'}
+                        <td colSpan="20" className="p-8 text-center text-slate-500">
+                          {peserta.length > 0 ? 'Pencarian/Filter tidak menemukan hasil.' : 'Belum ada data / Sedang memuat...'}
                         </td>
                       </tr>
                     ) : (
-                      peserta.map((p) => (
-                        <tr key={p.id} className="hover:bg-slate-50/50 transition-colors">
-                          <td className="p-4">
-                            {editingId === p.id ? <input type="text" value={editForm.nama} onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })} className="w-full p-2 border border-blue-300 rounded-lg outline-none" autoFocus /> : p.nama}
+                      processedPeserta.map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-50/80 transition-colors">
+                          <td className="p-3">
+                            {editingId === p.id ? <input type="text" value={editForm.nama} onChange={(e) => setEditForm({ ...editForm, nama: e.target.value })} className="w-full p-1.5 border border-blue-300 rounded outline-none" autoFocus /> : <span className="font-semibold text-slate-800">{p.nama}</span>}
                           </td>
-                          <td className="p-4 text-slate-600 font-medium">
-                            {editingId === p.id ? <input type="text" value={editForm.kelas} onChange={(e) => setEditForm({ ...editForm, kelas: e.target.value })} className="w-full p-2 border border-blue-300 rounded-lg outline-none" /> : p.kelas}
+                          
+                          {activeTab === 'pendaftaran' && (
+                            <td className="p-3 text-slate-600 font-medium font-mono text-xs">
+                              {editingId === p.id ? <input type="number" value={editForm.nik} onChange={(e) => setEditForm({ ...editForm, nik: e.target.value })} className="w-full p-1.5 border border-blue-300 rounded outline-none" /> : p.nik}
+                            </td>
+                          )}
+
+                          <td className="p-3 text-slate-600 font-medium">
+                            {editingId === p.id ? <input type="text" value={editForm.kelas} onChange={(e) => setEditForm({ ...editForm, kelas: e.target.value })} className="w-full p-1.5 border border-blue-300 rounded outline-none" /> : p.kelas}
                           </td>
-                          <td className="p-4"><TombolStatus status={p.ktp} onClick={() => toggleStatus(p.id, 'ktp')} disabled={!isAdmin} /></td>
-                          <td className="p-4"><TombolStatus status={p.foto} onClick={() => toggleStatus(p.id, 'foto')} disabled={!isAdmin} /></td>
-                          <td className="p-4"><TombolStatus status={p.rapot} onClick={() => toggleStatus(p.id, 'rapot')} disabled={!isAdmin} /></td>
-                          <td className="p-4"><TombolStatus status={p.sertifikat} onClick={() => toggleStatus(p.id, 'sertifikat')} disabled={!isAdmin} /></td>
-                          <td className="p-4"><TombolStatus status={p.suratKeterangan} onClick={() => toggleStatus(p.id, 'suratKeterangan')} disabled={!isAdmin} /></td>
-                          <td className="p-4"><KeteranganInput value={p.keterangan} id={p.id} onSave={updateKeterangan} disabled={!isAdmin} /></td>
+
+                          {/* BODY PENDAFTARAN (DINAMIS) */}
+                          {activeTab === 'pendaftaran' && DAFTAR_PENDAFTARAN.map(doc => {
+                            if (!activePendaftaranDocs[doc.id]) return null;
+                            if (doc.isText) {
+                              return <td key={doc.id} className={`p-2 ${doc.color ? 'bg-indigo-50/30' : ''}`}><TextInput value={p[doc.id]} id={p.id} field={doc.id} onSave={updateTextField} disabled={!isAdmin} placeholder={`Isi ${doc.label}...`} /></td>;
+                            }
+                            return (
+                              <td key={doc.id} className={`p-2 ${doc.color ? 'bg-emerald-50/30' : ''}`}>
+                                <TombolStatus status={p[doc.id]} onClick={() => toggleStatus(p.id, doc.id)} disabled={!isAdmin} />
+                              </td>
+                            );
+                          })}
+
+                          {/* BODY BERKAS (DINAMIS) */}
+                          {activeTab === 'berkas' && DAFTAR_DOKUMEN.map(doc => {
+                            if (!activeDocs[doc.id]) return null;
+                            if (doc.isText) {
+                              return <td key={doc.id} className="p-2"><TextInput value={p[doc.id]} id={p.id} field={doc.id} onSave={updateTextField} disabled={!isAdmin} placeholder="Ketik keterangan..." /></td>;
+                            }
+                            return (
+                              <td key={doc.id} className={`p-2 ${doc.color ? 'bg-blue-50/30' : ''}`}>
+                                <TombolStatus status={p[doc.id]} onClick={() => toggleStatus(p.id, doc.id)} disabled={!isAdmin} />
+                              </td>
+                            );
+                          })}
+
                           {isAdmin && (
-                            <td className="p-4 print:hidden">
+                            <td className="p-3 print:hidden">
                               {editingId === p.id ? (
                                 <div className="flex gap-1 justify-center">
-                                  <button onClick={() => simpanEdit(p.id)} title="Simpan" className="text-emerald-600 bg-emerald-50 hover:bg-emerald-100 p-2 rounded-lg transition-colors"><i className="fas fa-save text-lg"></i></button>
-                                  <button onClick={batalEdit} title="Batal" className="text-slate-500 bg-slate-100 hover:bg-slate-200 p-2 rounded-lg transition-colors"><i className="fas fa-times text-lg"></i></button>
+                                  <button onClick={() => simpanEdit(p.id)} className="text-emerald-600 bg-emerald-100 hover:bg-emerald-200 p-2 rounded-lg"><i className="fas fa-save"></i></button>
+                                  <button onClick={batalEdit} className="text-slate-500 bg-slate-200 hover:bg-slate-300 p-2 rounded-lg"><i className="fas fa-times"></i></button>
                                 </div>
                               ) : (
                                 <div className="flex gap-1 justify-center">
-                                  <button onClick={() => mulaiEdit(p)} title="Edit" className="text-blue-600 bg-blue-50 hover:bg-blue-100 p-2 rounded-lg transition-colors"><i className="fas fa-edit text-lg"></i></button>
-                                  <button onClick={() => hapusPeserta(p.id, p.nama)} title="Hapus" className="text-rose-600 bg-rose-50 hover:bg-rose-100 p-2 rounded-lg transition-colors"><i className="fas fa-trash text-lg"></i></button>
+                                  <button onClick={() => mulaiEdit(p)} className="text-blue-600 bg-blue-100 hover:bg-blue-200 p-2 rounded-lg"><i className="fas fa-edit"></i></button>
+                                  <button onClick={() => hapusPeserta(p.id, p.nama)} className="text-rose-600 bg-rose-100 hover:bg-rose-200 p-2 rounded-lg"><i className="fas fa-trash"></i></button>
                                 </div>
                               )}
                             </td>
@@ -606,41 +749,74 @@
               </div>
             </div>
 
-            {/* Modal-modal (Login, Confirm, Alert) */}
+            {/* Modal Pengaturan Kolom Dinamis (Pendaftaran / Berkas) */}
+            {showSettings && (
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 print:hidden backdrop-blur-sm">
+                <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                  <div className="flex justify-between items-center mb-5">
+                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2">
+                      <i className="fas fa-cog text-slate-600"></i> Pengaturan Kolom {activeTab === 'pendaftaran' ? 'Pendaftaran' : 'Berkas'}
+                    </h3>
+                    <button onClick={() => setShowSettings(false)} className="text-slate-400 hover:text-rose-500"><i className="fas fa-times text-lg"></i></button>
+                  </div>
+                  <p className="text-sm text-slate-500 mb-4">Centang fitur yang ingin ditampilkan di tab ini. Kolom yang tidak dicentang tidak akan diwajibkan untuk progres kelengkapan 100%.</p>
+                  
+                  <div className="space-y-3 mb-6 max-h-[300px] overflow-y-auto pr-2">
+                    {activeSettingsList.map(doc => (
+                      <label key={doc.id} className="flex items-center gap-3 p-3 border rounded-lg hover:bg-slate-50 cursor-pointer">
+                        <input 
+                          type="checkbox" 
+                          checked={activeSettingsState[doc.id] || false}
+                          onChange={(e) => setActiveSettingsState(prev => ({ ...prev, [doc.id]: e.target.checked }))}
+                          className="w-5 h-5 text-blue-600 rounded border-slate-300 focus:ring-blue-500"
+                        />
+                        <span className="font-medium text-slate-700 flex-1"><i className={`fas ${doc.icon} w-5 text-center mr-2 text-slate-400`}></i> {doc.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                  <button onClick={() => setShowSettings(false)} className="w-full py-3 bg-slate-800 hover:bg-slate-900 text-white rounded-xl font-bold shadow-md transition-all">Selesai</button>
+                </div>
+              </div>
+            )}
+
+            {/* Modal Dialogs */}
             {alertDialog.isOpen && (
               <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 print:hidden">
                 <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">{alertDialog.title}</h3>
+                  <h3 className="text-lg font-bold mb-2">{alertDialog.title}</h3>
                   <p className="text-slate-600 mb-6">{alertDialog.message}</p>
-                  <button onClick={() => setAlertDialog({ isOpen: false, title: '', message: '' })} className="w-full py-2.5 bg-blue-600 text-white rounded-lg">Tutup</button>
+                  <button onClick={() => setAlertDialog({ isOpen: false, title: '', message: '' })} className="w-full py-2.5 bg-blue-600 text-white rounded-lg font-bold">Tutup</button>
                 </div>
               </div>
             )}
 
             {confirmDialog.isOpen && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 print:hidden">
-                <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
-                  <h3 className="text-lg font-bold text-slate-900 mb-2">Konfirmasi</h3>
-                  <p className="text-slate-600 mb-6">{confirmDialog.message}</p>
+              <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4 print:hidden backdrop-blur-sm">
+                <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl">
+                  <div className={`w-12 h-12 rounded-full flex items-center justify-center mb-4 ${confirmDialog.isDanger ? 'bg-rose-100 text-rose-600' : 'bg-amber-100 text-amber-600'}`}>
+                    <i className={`fas text-2xl ${confirmDialog.isDanger ? 'fa-exclamation-triangle' : 'fa-question'}`}></i>
+                  </div>
+                  <h3 className="text-xl font-bold mb-2">Konfirmasi</h3>
+                  <p className="text-slate-600 mb-6 leading-relaxed">{confirmDialog.message}</p>
                   <div className="flex justify-end gap-3">
-                    <button onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null })} className="px-4 py-2 bg-slate-100 rounded-lg">Batal</button>
-                    <button onClick={confirmDialog.onConfirm} className="px-4 py-2 text-white bg-rose-600 rounded-lg">Ya, Hapus</button>
+                    <button onClick={() => setConfirmDialog({ isOpen: false, message: '', onConfirm: null, isDanger: false })} className="px-5 py-2.5 bg-slate-100 hover:bg-slate-200 rounded-lg font-semibold text-slate-700">Batal</button>
+                    <button onClick={confirmDialog.onConfirm} className={`px-5 py-2.5 rounded-lg font-semibold text-white shadow-sm ${confirmDialog.isDanger ? 'bg-rose-600 hover:bg-rose-700' : 'bg-blue-600 hover:bg-blue-700'}`}>Ya, Lanjutkan</button>
                   </div>
                 </div>
               </div>
             )}
 
             {showLogin && (
-              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 print:hidden">
-                <div className="bg-white rounded-xl p-6 max-w-sm w-full shadow-xl">
-                  <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-lg font-bold text-slate-900">Login Admin</h3>
-                    <button onClick={() => setShowLogin(false)} className="text-slate-400"><i className="fas fa-times text-lg"></i></button>
+              <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4 print:hidden backdrop-blur-sm">
+                <div className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-2xl border-t-4 border-blue-600">
+                  <div className="flex justify-between items-center mb-5">
+                    <h3 className="text-xl font-bold text-slate-900 flex items-center gap-2"><i className="fas fa-user-shield text-blue-600"></i> Login Admin</h3>
+                    <button onClick={() => setShowLogin(false)} className="text-slate-400 hover:text-rose-500 w-8 h-8 flex justify-center items-center rounded-full hover:bg-rose-50 transition-colors"><i className="fas fa-times text-lg"></i></button>
                   </div>
                   <form onSubmit={handlePinSubmit}>
-                    <input type="password" value={pin} onChange={(e) => { setPin(e.target.value); setPinError(''); }} className="w-full p-2.5 border rounded-lg outline-none mb-2" placeholder="PIN: manatauja" autoFocus />
-                    {pinError && <p className="text-rose-500 text-sm mb-2">{pinError}</p>}
-                    <button type="submit" className="w-full py-2.5 bg-blue-600 text-white rounded-lg mt-2">Masuk</button>
+                    <input type="password" value={pin} onChange={(e) => { setPin(e.target.value); setPinError(''); }} className="w-full p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-blue-500 text-center tracking-[0.5em] text-xl font-bold mb-2 shadow-inner" placeholder="••••" autoFocus />
+                    {pinError && <p className="text-rose-500 text-sm mb-3 text-center font-medium animate-pulse">{pinError}</p>}
+                    <button type="submit" className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl mt-2 font-bold shadow-md transition-all active:scale-95">Masuk</button>
                   </form>
                 </div>
               </div>
