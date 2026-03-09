@@ -1,7 +1,6 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-  <link rel="icon" type="image/png" href="./public/icon-192.png">
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistem Pengecekan Berkas Lengkap</title>
@@ -17,6 +16,23 @@
   <div id="root"></div>
 
   <script type="text/babel">
+    // === INJEKSI SERVICE WORKER (SYARAT MUTLAK PWA DARI BROWSER) ===
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        const swCode = `
+          self.addEventListener('install', (e) => self.skipWaiting());
+          self.addEventListener('activate', (e) => e.waitUntil(self.clients.claim()));
+          self.addEventListener('fetch', (e) => { /* Dummy fetch agar browser mengenali ini sebagai PWA */ });
+        `;
+        const blob = new Blob([swCode], { type: 'application/javascript' });
+        const swUrl = URL.createObjectURL(blob);
+        navigator.serviceWorker.register(swUrl)
+          .then(() => console.log("PWA Service Worker Aktif"))
+          .catch(err => console.log("SW Error:", err));
+      });
+    }
+    // ==============================================================
+
     const { useState, useEffect } = React;
 
     // GANTI URL INI JIKA ANDA MEMBUAT DEPLOYMENT BARU DI APPS SCRIPT
@@ -41,10 +57,10 @@
       { id: 'data2', label: 'Data 2', icon: 'fa-keyboard', isText: true, color: 'bg-indigo-50 text-indigo-700' },
       { id: 'daftar', label: 'Daftar', icon: 'fa-sign-in-alt' },
       { id: 'updateProfil', label: 'Update Profil', icon: 'fa-user-edit' },
-      { id: 'pilihSkema', label: 'Pilih Skema Okupasi', icon: 'fa-list-check' },
-      { id: 'uploadBerkas', label: 'Upload Berkas dan ttd', icon: 'fa-file-upload' },
-      { id: 'apl', label: 'Verifikasi Berkas oleh LSP & Pengisian APL 01/02', icon: 'fa-file-signature' },
-      { id: 'jadwalUjian', label: 'Jadwal Ujian', icon: 'fa-calendar-alt' },
+      { id: 'pilihSkema', label: 'Pilih Skema', icon: 'fa-list-check' },
+      { id: 'uploadBerkas', label: 'Upload Berkas', icon: 'fa-file-upload' },
+      { id: 'apl', label: 'Verifikasi LSP', icon: 'fa-file-signature' },
+      { id: 'jadwalUjian', label: 'APL2 & Jadwal ujian', icon: 'fa-calendar-alt' },
       { id: 'finish', label: 'Finish', icon: 'fa-flag-checkered', color: 'bg-emerald-50 text-emerald-700' }
     ];
 
@@ -173,7 +189,6 @@
   { src: "./public/icon-192.png", sizes: "192x192", type: "image/png" },
   { src: "./public/icon-512.png", sizes: "512x512", type: "image/png" }
 ]
-          
         };
         const manifestUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
         let link = document.querySelector('link[rel="manifest"]');
