@@ -67,7 +67,7 @@
       { id: 'finish', label: 'Finish', icon: 'fa-flag-checkered', color: 'bg-emerald-50 text-emerald-700' }
     ];
 
-    // Komponen Input Teks Dinamis (Untuk NIK, Data 1, Data 2, dan Keterangan)
+    // Komponen Input Teks Dinamis (Untuk Keterangan yang butuh form lebar/multi-baris)
     const TextInput = ({ value, id, field, onSave, disabled, placeholder }) => {
       const [text, setText] = useState(value === '-' ? '' : value);
       useEffect(() => { setText(value === '-' ? '' : value) }, [value]);
@@ -83,6 +83,26 @@
             disabled ? 'bg-transparent border-transparent text-slate-700 cursor-default' : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white shadow-sm'
           }`}
           rows="2"
+        />
+      );
+    };
+
+    // Komponen Input Baris Tunggal (Untuk ketik NIK, Data1, dan Data2 langsung di tabel)
+    const StringInput = ({ value, id, field, onSave, disabled, placeholder, type = "text" }) => {
+      const [text, setText] = useState(value === '-' ? '' : value);
+      useEffect(() => { setText(value === '-' ? '' : value) }, [value]);
+      
+      return (
+        <input
+          type={type}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => onSave(id, field, text || '-')}
+          disabled={disabled}
+          placeholder={disabled ? "-" : placeholder || "Ketik..."}
+          className={`w-full p-2 text-sm border rounded-lg outline-none transition-colors print:border-none print:bg-transparent print:p-0 ${
+            disabled ? 'bg-transparent border-transparent text-slate-700 cursor-default' : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white shadow-sm'
+          }`}
         />
       );
     };
@@ -666,7 +686,7 @@
                       
                       {/* HEADER NIK (Tampil sebagai block di tab Pendaftaran) */}
                       {activeTab === 'pendaftaran' && (
-                        <th className="p-3 font-bold min-w-[200px] text-center">
+                        <th className="p-3 font-bold w-48 min-w-[150px] text-center">
                           <i className="fas fa-id-badge mb-1 text-lg block text-slate-500"></i> NIK
                         </th>
                       )}
@@ -678,7 +698,7 @@
                         if (!activePendaftaranDocs[doc.id]) return null;
                         if (doc.isText) {
                           return (
-                            <th key={doc.id} className={`p-3 font-bold min-w-[200px] text-center ${doc.color || ''}`}>
+                            <th key={doc.id} className={`p-3 font-bold w-48 min-w-[150px] text-center ${doc.color || ''}`}>
                               <i className={`fas ${doc.icon} mb-1 text-lg block`}></i> {doc.label}
                             </th>
                           );
@@ -722,7 +742,8 @@
                           
                           {activeTab === 'pendaftaran' && (
                             <td className="p-2">
-                              <TextInput 
+                              <StringInput 
+                                type="number" 
                                 value={p.nik} 
                                 id={p.id} 
                                 field="nik" 
@@ -741,7 +762,7 @@
                           {activeTab === 'pendaftaran' && DAFTAR_PENDAFTARAN.map(doc => {
                             if (!activePendaftaranDocs[doc.id]) return null;
                             if (doc.isText) {
-                              return <td key={doc.id} className={`p-2 ${doc.color ? 'bg-indigo-50/30' : ''}`}><TextInput value={p[doc.id]} id={p.id} field={doc.id} onSave={updateTextField} disabled={!isAdmin} placeholder={`Isi ${doc.label}...`} /></td>;
+                              return <td key={doc.id} className={`p-2 ${doc.color ? 'bg-indigo-50/30' : ''}`}><StringInput value={p[doc.id]} id={p.id} field={doc.id} onSave={updateTextField} disabled={!isAdmin} placeholder={`Isi ${doc.label}...`} /></td>;
                             }
                             return (
                               <td key={doc.id} className={`p-2 ${doc.color ? 'bg-emerald-50/30' : ''}`}>
