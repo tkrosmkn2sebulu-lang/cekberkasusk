@@ -5,6 +5,9 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Sistem Pengecekan Berkas Lengkap</title>
   
+  <!-- Menambahkan Ikon untuk Tab Browser -->
+  <link rel="icon" type="image/png" href="./public/icon-192.png">
+  
   <script src="https://cdn.tailwindcss.com"></script>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   
@@ -59,8 +62,8 @@
       { id: 'updateProfil', label: 'Update Profil', icon: 'fa-user-edit' },
       { id: 'pilihSkema', label: 'Pilih Skema', icon: 'fa-list-check' },
       { id: 'uploadBerkas', label: 'Upload Berkas', icon: 'fa-file-upload' },
-      { id: 'apl', label: 'Verifikasi LSP', icon: 'fa-file-signature' },
-      { id: 'jadwalUjian', label: 'APL2 & Jadwal ujian', icon: 'fa-calendar-alt' },
+      { id: 'apl', label: 'APL 01/02', icon: 'fa-file-signature' },
+      { id: 'jadwalUjian', label: 'Jadwal Ujian', icon: 'fa-calendar-alt' },
       { id: 'finish', label: 'Finish', icon: 'fa-flag-checkered', color: 'bg-emerald-50 text-emerald-700' }
     ];
 
@@ -80,6 +83,26 @@
             disabled ? 'bg-transparent border-transparent text-slate-700 cursor-default' : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white shadow-sm'
           }`}
           rows="2"
+        />
+      );
+    };
+
+    // Komponen Input Baris Tunggal (Untuk ketik NIK langsung di tabel)
+    const StringInput = ({ value, id, field, onSave, disabled, placeholder, type = "text" }) => {
+      const [text, setText] = useState(value === '-' ? '' : value);
+      useEffect(() => { setText(value === '-' ? '' : value) }, [value]);
+      
+      return (
+        <input
+          type={type}
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          onBlur={() => onSave(id, field, text || '-')}
+          disabled={disabled}
+          placeholder={disabled ? "-" : placeholder || "Ketik..."}
+          className={`w-full p-2 text-xs font-mono border rounded-lg outline-none transition-colors print:border-none print:bg-transparent print:p-0 ${
+            disabled ? 'bg-transparent border-transparent text-slate-700 cursor-default' : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white shadow-sm'
+          }`}
         />
       );
     };
@@ -139,7 +162,7 @@
           
           const formattedData = data.map(item => ({
             ...item,
-            nik: item.nik || '',
+            nik: item.nik || '-',
             data1: item.data1 || '',
             data2: item.data2 || '',
             daftar: item.daftar === true || item.daftar === 'true' || item.daftar === 'TRUE',
@@ -186,9 +209,9 @@
           start_url: window.location.href, display: "standalone",
           background_color: "#f8fafc", theme_color: "#2563eb",
           icons: [
-  { src: "./public/icon-192.png", sizes: "192x192", type: "image/png" },
-  { src: "./public/icon-512.png", sizes: "512x512", type: "image/png" }
-]
+            { src: "./public/icon-192.png", sizes: "192x192", type: "image/png" },
+            { src: "./public/icon-512.png", sizes: "512x512", type: "image/png" }
+          ]
         };
         const manifestUrl = 'data:application/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(manifest));
         let link = document.querySelector('link[rel="manifest"]');
@@ -660,7 +683,7 @@
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
                       <th className="p-3 font-bold min-w-[180px]">Nama Lengkap</th>
-                      {activeTab === 'pendaftaran' && <th className="p-3 font-bold w-40">NIK</th>}
+                      {activeTab === 'pendaftaran' && <th className="p-3 font-bold w-48 min-w-[150px]">NIK</th>}
                       <th className="p-3 font-bold w-20">Kelas</th>
                       
                       {/* HEADER PENDAFTARAN (DINAMIS) */}
@@ -711,8 +734,16 @@
                           </td>
                           
                           {activeTab === 'pendaftaran' && (
-                            <td className="p-3 text-slate-600 font-medium font-mono text-xs">
-                              {editingId === p.id ? <input type="number" value={editForm.nik} onChange={(e) => setEditForm({ ...editForm, nik: e.target.value })} className="w-full p-1.5 border border-blue-300 rounded outline-none" /> : p.nik}
+                            <td className="p-2">
+                              <StringInput 
+                                type="number" 
+                                value={p.nik} 
+                                id={p.id} 
+                                field="nik" 
+                                onSave={updateTextField} 
+                                disabled={!isAdmin} 
+                                placeholder="Ketik NIK..." 
+                              />
                             </td>
                           )}
 
