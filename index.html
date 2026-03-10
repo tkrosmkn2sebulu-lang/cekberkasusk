@@ -480,7 +480,7 @@
         if (activeTab === 'pendaftaran') {
           return DAFTAR_PENDAFTARAN.every(doc => {
             if (!activePendaftaranDocs[doc.id]) return true; // Jika dimatikan, abaikan
-            if (doc.isText) return p[doc.id] && p[doc.id].trim() !== ''; // Text isian harus diisi
+            if (doc.isText) return p[doc.id] && String(p[doc.id]).trim() !== ''; // Text isian harus diisi
             return p[doc.id]; // Tombol harus status 'Sudah'
           });
         } else {
@@ -494,15 +494,22 @@
 
       const processedPeserta = peserta
         .filter(p => {
-          const searchMatch = p.nama.toLowerCase().includes(searchTerm.toLowerCase()) || p.kelas.toLowerCase().includes(searchTerm.toLowerCase()) || p.nik.includes(searchTerm);
+          // Konversi semua data menjadi String untuk mencegah Crash jika sumber dari Google Sheet berupa Angka
+          const safeNama = p.nama ? String(p.nama).toLowerCase() : '';
+          const safeKelas = p.kelas ? String(p.kelas).toLowerCase() : '';
+          const safeNik = p.nik ? String(p.nik).toLowerCase() : '';
+          const searchLower = searchTerm.toLowerCase();
+          
+          const searchMatch = safeNama.includes(searchLower) || safeKelas.includes(searchLower) || safeNik.includes(searchLower);
+          
           const isLengkap = checkLengkap(p);
           const filterMatch = filterStatus === 'all' ? true : (filterStatus === 'lengkap' ? isLengkap : !isLengkap);
           return searchMatch && filterMatch;
         })
         .sort((a, b) => {
-          if (sortBy === 'nama_asc') return a.nama.localeCompare(b.nama);
-          if (sortBy === 'nama_desc') return b.nama.localeCompare(a.nama);
-          if (sortBy === 'kelas_asc') return a.kelas.localeCompare(b.kelas);
+          if (sortBy === 'nama_asc') return String(a.nama || '').localeCompare(String(b.nama || ''));
+          if (sortBy === 'nama_desc') return String(b.nama || '').localeCompare(String(a.nama || ''));
+          if (sortBy === 'kelas_asc') return String(a.kelas || '').localeCompare(String(b.kelas || ''));
           return a.createdAt - b.createdAt;
         });
 
