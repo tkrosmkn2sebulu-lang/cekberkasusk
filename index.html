@@ -67,42 +67,22 @@
       { id: 'finish', label: 'Finish', icon: 'fa-flag-checkered', color: 'bg-emerald-50 text-emerald-700' }
     ];
 
-    // Komponen Input Teks Dinamis (Untuk Data 1, Data 2, dan Keterangan)
+    // Komponen Input Teks Dinamis (Untuk NIK, Data 1, Data 2, dan Keterangan)
     const TextInput = ({ value, id, field, onSave, disabled, placeholder }) => {
-      const [text, setText] = useState(value || '');
-      useEffect(() => { setText(value || '') }, [value]);
+      const [text, setText] = useState(value === '-' ? '' : value);
+      useEffect(() => { setText(value === '-' ? '' : value) }, [value]);
       
       return (
         <textarea
           value={text}
           onChange={(e) => setText(e.target.value)}
-          onBlur={() => onSave(id, field, text)}
+          onBlur={() => onSave(id, field, text || '-')}
           disabled={disabled}
           placeholder={disabled ? "-" : placeholder || "Ketik..."}
           className={`w-full p-2 text-sm border rounded-lg outline-none resize-none min-w-[150px] transition-colors print:border-none print:bg-transparent print:p-0 print:resize-none ${
             disabled ? 'bg-transparent border-transparent text-slate-700 cursor-default' : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white shadow-sm'
           }`}
           rows="2"
-        />
-      );
-    };
-
-    // Komponen Input Baris Tunggal (Untuk ketik NIK langsung di tabel)
-    const StringInput = ({ value, id, field, onSave, disabled, placeholder, type = "text" }) => {
-      const [text, setText] = useState(value === '-' ? '' : value);
-      useEffect(() => { setText(value === '-' ? '' : value) }, [value]);
-      
-      return (
-        <input
-          type={type}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onBlur={() => onSave(id, field, text || '-')}
-          disabled={disabled}
-          placeholder={disabled ? "-" : placeholder || "Ketik..."}
-          className={`w-full p-2 text-xs font-mono border rounded-lg outline-none transition-colors print:border-none print:bg-transparent print:p-0 ${
-            disabled ? 'bg-transparent border-transparent text-slate-700 cursor-default' : 'border-slate-200 focus:ring-2 focus:ring-blue-500 bg-white shadow-sm'
-          }`}
         />
       );
     };
@@ -683,7 +663,14 @@
                   <thead>
                     <tr className="bg-slate-50 border-b border-slate-200 text-xs uppercase tracking-wider text-slate-500">
                       <th className="p-3 font-bold min-w-[180px]">Nama Lengkap</th>
-                      {activeTab === 'pendaftaran' && <th className="p-3 font-bold w-48 min-w-[150px]">NIK</th>}
+                      
+                      {/* HEADER NIK (Tampil sebagai block di tab Pendaftaran) */}
+                      {activeTab === 'pendaftaran' && (
+                        <th className="p-3 font-bold min-w-[200px] text-center">
+                          <i className="fas fa-id-badge mb-1 text-lg block text-slate-500"></i> NIK
+                        </th>
+                      )}
+                      
                       <th className="p-3 font-bold w-20">Kelas</th>
                       
                       {/* HEADER PENDAFTARAN (DINAMIS) */}
@@ -735,8 +722,7 @@
                           
                           {activeTab === 'pendaftaran' && (
                             <td className="p-2">
-                              <StringInput 
-                                type="number" 
+                              <TextInput 
                                 value={p.nik} 
                                 id={p.id} 
                                 field="nik" 
